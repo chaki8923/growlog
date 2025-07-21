@@ -149,7 +149,6 @@ export default function ExploreScreen() {
               placeholderTextColor="#666"
               value={formData.events}
               onChangeText={(text) => setFormData(prev => ({ ...prev, events: text }))}
-              returnKeyType="done"
               blurOnSubmit={true}
             />
           </ThemedView>
@@ -174,7 +173,6 @@ export default function ExploreScreen() {
               placeholderTextColor="#666"
               value={formData.thoughts}
               onChangeText={(text) => setFormData(prev => ({ ...prev, thoughts: text }))}
-              returnKeyType="done"
               blurOnSubmit={true}
             />
           </ThemedView>
@@ -199,7 +197,6 @@ export default function ExploreScreen() {
               placeholderTextColor="#666"
               value={formData.achievements}
               onChangeText={(text) => setFormData(prev => ({ ...prev, achievements: text }))}
-              returnKeyType="done"
               blurOnSubmit={true}
             />
           </ThemedView>
@@ -211,7 +208,7 @@ export default function ExploreScreen() {
             <Feather name="activity" size={16} color="#58a6ff" style={styles.labelIcon} />
             <ThemedText style={styles.label}>
               <ThemedText style={styles.flag}>--mood</ThemedText>
-              <ThemedText style={styles.labelDesc}> 今日の気持ちは？</ThemedText>
+              <ThemedText style={styles.labelDesc}> feeling today?</ThemedText>
             </ThemedText>
           </ThemedView>
           <ThemedView style={styles.moodContainer}>
@@ -257,7 +254,7 @@ export default function ExploreScreen() {
             style={styles.buttonIcon}
           />
           <ThemedText style={styles.submitButtonText}>
-            {isLoading ? '[UPLOADING...] ░░░░░░░░░░' : '[EXECUTE]  保存する'}
+            {isLoading ? '[UPLOADING...] ░░░░░░░░░░' : '[EXECUTE]  SAVE'}
           </ThemedText>
         </TouchableOpacity>
 

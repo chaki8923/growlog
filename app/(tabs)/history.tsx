@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase.config';
+import { Feather } from '@expo/vector-icons';
 import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -25,10 +26,16 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // 気分評価の絵文字変換
-  const getMoodEmoji = (mood: number) => {
-    const moodEmojis = ['', '😞', '😕', '😐', '😊', '😄'];
-    return moodEmojis[mood];
+  // 気分評価の文字列変換
+  const getMoodText = (mood: number) => {
+    const moodTexts = ['', 'CRITICAL', 'ERROR', 'WARNING', 'SUCCESS', 'OPTIMAL'];
+    return moodTexts[mood];
+  };
+
+  // 気分評価の色
+  const getMoodColor = (mood: number) => {
+    const moodColors = ['', '#ff6b6b', '#ff9f43', '#feca57', '#48dbfb', '#0be881'];
+    return moodColors[mood];
   };
 
   // 日付フォーマット
@@ -36,9 +43,8 @@ export default function HistoryScreen() {
     const date = timestamp.toDate();
     return date.toLocaleDateString('ja-JP', {
       year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'short'
+      month: '2-digit',
+      day: '2-digit',
     });
   };
 
@@ -89,7 +95,7 @@ export default function HistoryScreen() {
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.container}>
           <ThemedView style={styles.centerContainer}>
-            <ThemedText style={styles.loadingText}>成長記録を読み込んでいます...</ThemedText>
+            <ThemedText style={styles.loadingText}>[INFO] Loading growth records...</ThemedText>
           </ThemedView>
         </ThemedView>
       </SafeAreaView>
@@ -107,11 +113,37 @@ export default function HistoryScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          {/* ターミナルヘッダー */}
+          <ThemedView style={styles.terminal}>
+            <ThemedView style={styles.terminalHeader}>
+              <ThemedView style={styles.terminalButtons}>
+                <ThemedView style={[styles.terminalButton, styles.redButton]} />
+                <ThemedView style={[styles.terminalButton, styles.yellowButton]} />
+                <ThemedView style={[styles.terminalButton, styles.greenButton]} />
+              </ThemedView>
+              <ThemedText style={styles.terminalTitle}>growth-history v2.0.1</ThemedText>
+            </ThemedView>
+            
+            <ThemedView style={styles.terminalContent}>
+              <ThemedText style={styles.promptLine}>
+                <ThemedText style={styles.prompt}>user@growlog:~$ </ThemedText>
+                <ThemedText style={styles.command}>./list_records --format timeline</ThemedText>
+              </ThemedText>
+              <ThemedText style={styles.systemInfo}>
+                [WARN] No growth records found in database
+              </ThemedText>
+              <ThemedText style={styles.systemInfo}>
+                [INFO] Start recording your growth journey
+              </ThemedText>
+            </ThemedView>
+          </ThemedView>
+
           <ThemedView style={styles.emptyContent}>
-            <ThemedText style={styles.emptyIcon}>🌱</ThemedText>
-            <ThemedText style={styles.emptyTitle}>まだ成長記録がありません</ThemedText>
+            <Feather name="database" size={48} color="#58a6ff" style={styles.emptyIcon} />
+            <ThemedText style={styles.emptyTitle}>DATABASE EMPTY</ThemedText>
             <ThemedText style={styles.emptyMessage}>
-              「成長記録」タブから今日の成長を記録してみましょう！
+              No growth records detected.{'\n'}
+              Navigate to growth-tracker module to begin data collection.
             </ThemedText>
           </ThemedView>
         </ScrollView>
@@ -128,32 +160,59 @@ export default function HistoryScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <ThemedView style={styles.header}>
-          <ThemedText style={styles.title}>成長の軌跡</ThemedText>
-          <ThemedText style={styles.subtitle}>
-            これまでの記録: {reflections.length}日間 🌟
-          </ThemedText>
+        {/* ターミナルヘッダー */}
+        <ThemedView style={styles.terminal}>
+          <ThemedView style={styles.terminalHeader}>
+            <ThemedView style={styles.terminalButtons}>
+              <ThemedView style={[styles.terminalButton, styles.redButton]} />
+              <ThemedView style={[styles.terminalButton, styles.yellowButton]} />
+              <ThemedView style={[styles.terminalButton, styles.greenButton]} />
+            </ThemedView>
+            <ThemedText style={styles.terminalTitle}>growth-history v2.0.1</ThemedText>
+          </ThemedView>
+          
+          <ThemedView style={styles.terminalContent}>
+            <ThemedText style={styles.promptLine}>
+              <ThemedText style={styles.prompt}>user@growlog:~$ </ThemedText>
+              <ThemedText style={styles.command}>./list_records --format timeline --limit 100</ThemedText>
+            </ThemedText>
+            <ThemedText style={styles.systemInfo}>
+              [INFO] Found {reflections.length} growth records in database
+            </ThemedText>
+            <ThemedText style={styles.systemInfo}>
+              [INFO] Displaying chronological timeline view
+            </ThemedText>
+          </ThemedView>
         </ThemedView>
 
         {reflections.map((reflection) => (
           <TouchableOpacity
             key={reflection.id}
             style={styles.reflectionCard}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             <View style={styles.cardHeader}>
-              <ThemedText style={styles.cardDate}>
-                {formatDate(reflection.date)}
-              </ThemedText>
-              <ThemedText style={styles.cardMood}>
-                {getMoodEmoji(reflection.mood)}
-              </ThemedText>
+              <ThemedView style={styles.cardInfo}>
+                <Feather name="calendar" size={14} color="#58a6ff" />
+                <ThemedText style={styles.cardDate}>
+                  {formatDate(reflection.date)}
+                </ThemedText>
+              </ThemedView>
+              <ThemedView style={styles.moodIndicator}>
+                <Feather name="activity" size={12} color={getMoodColor(reflection.mood)} />
+                <ThemedText style={[styles.cardMood, { color: getMoodColor(reflection.mood) }]}>
+                  {getMoodText(reflection.mood)}
+                </ThemedText>
+              </ThemedView>
             </View>
 
             {/* 今日の出来事 */}
-            {reflection.events.trim() && (
+            {reflection.events && reflection.events.trim() && (
               <ThemedView style={styles.cardSection}>
-                <ThemedText style={styles.sectionTitle}>📝 出来事</ThemedText>
+                <ThemedView style={styles.sectionHeader}>
+                  <Feather name="edit-3" size={12} color="#8b949e" />
+                  <ThemedText style={styles.sectionTitle}>--events</ThemedText>
+                </ThemedView>
                 <ThemedText style={styles.sectionContent} numberOfLines={2}>
                   {reflection.events}
                 </ThemedText>
@@ -161,9 +220,12 @@ export default function HistoryScreen() {
             )}
 
             {/* 考察・感情 */}
-            {reflection.thoughts && (
+            {reflection.thoughts && reflection.thoughts.trim() && (
               <ThemedView style={styles.cardSection}>
-                <ThemedText style={styles.sectionTitle}>💭 考察・感情</ThemedText>
+                <ThemedView style={styles.sectionHeader}>
+                  <Feather name="message-circle" size={12} color="#8b949e" />
+                  <ThemedText style={styles.sectionTitle}>--thoughts</ThemedText>
+                </ThemedView>
                 <ThemedText style={styles.sectionContent} numberOfLines={2}>
                   {reflection.thoughts}
                 </ThemedText>
@@ -172,7 +234,10 @@ export default function HistoryScreen() {
 
             {/* 成功体験・知識・スキル */}
             <ThemedView style={styles.cardSection}>
-              <ThemedText style={styles.sectionTitle}>✨ 成功・知識・スキル</ThemedText>
+              <ThemedView style={styles.sectionHeader}>
+                <Feather name="target" size={12} color="#0be881" />
+                <ThemedText style={[styles.sectionTitle, styles.achievementTitle]}>--achievements</ThemedText>
+              </ThemedView>
               <ThemedText style={styles.achievementContent} numberOfLines={3}>
                 {reflection.achievements}
               </ThemedText>
@@ -180,9 +245,11 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         ))}
 
+        {/* フッター */}
         <ThemedView style={styles.footer}>
+          <Feather name="trending-up" size={16} color="#58a6ff" />
           <ThemedText style={styles.footerText}>
-            継続は力なり！毎日の小さな成長が大きな変化を生みます 🌱➡️🌳
+            GROWTH TRACKING ACTIVE - {reflections.length} RECORDS STORED
           </ThemedText>
         </ThemedView>
       </ScrollView>
@@ -193,11 +260,11 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8fffe',
+    backgroundColor: '#0d1117',
   },
   container: {
     flex: 1,
-    backgroundColor: '#f8fffe',
+    backgroundColor: '#0d1117',
   },
   contentContainer: {
     padding: 16,
@@ -214,63 +281,107 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
   },
+  terminal: {
+    marginBottom: 16,
+    backgroundColor: '#161b22',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#30363d',
+    overflow: 'hidden',
+  },
+  terminalHeader: {
+    backgroundColor: '#21262d',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#30363d',
+  },
+  terminalButtons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  terminalButton: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  redButton: {
+    backgroundColor: '#ff6b6b',
+  },
+  yellowButton: {
+    backgroundColor: '#feca57',
+  },
+  greenButton: {
+    backgroundColor: '#48dbfb',
+  },
+  terminalTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#8b949e',
+    fontFamily: 'monospace',
+  },
+  terminalContent: {
+    padding: 16,
+    backgroundColor: 'transparent',
+  },
+  promptLine: {
+    marginBottom: 8,
+  },
+  prompt: {
+    color: '#0be881',
+    fontFamily: 'monospace',
+    fontSize: 14,
+  },
+  command: {
+    color: '#58a6ff',
+    fontFamily: 'monospace',
+    fontSize: 14,
+  },
+  systemInfo: {
+    color: '#7c3aed',
+    fontFamily: 'monospace',
+    fontSize: 12,
+    marginBottom: 4,
+  },
   emptyContent: {
     alignItems: 'center',
     backgroundColor: 'transparent',
+    marginTop: 32,
   },
   emptyIcon: {
-    fontSize: 60,
     marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
-    color: '#4a9960',
+    color: '#58a6ff',
+    fontFamily: 'monospace',
   },
   emptyMessage: {
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
-    opacity: 0.7,
-    lineHeight: 24,
+    color: '#8b949e',
+    lineHeight: 20,
+    fontFamily: 'monospace',
   },
   loadingText: {
-    fontSize: 16,
-    color: '#4a9960',
-  },
-  header: {
-    marginBottom: 24,
-    marginTop: 8,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  title: {
-    fontSize: 21,
-    fontWeight: 'bold',
-    color: '#2d7d46',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#4a9960',
-    opacity: 0.8,
+    fontSize: 14,
+    color: '#58a6ff',
+    fontFamily: 'monospace',
   },
   reflectionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
+    backgroundColor: '#161b22',
+    borderRadius: 8,
     padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4a9960',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#30363d',
+    borderLeftWidth: 3,
+    borderLeftColor: '#58a6ff',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -278,47 +389,81 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  cardInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
   cardDate: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#2d7d46',
+    color: '#58a6ff',
+    marginLeft: 6,
+    fontFamily: 'monospace',
+  },
+  moodIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   cardMood: {
-    fontSize: 24,
+    fontSize: 11,
+    marginLeft: 4,
+    fontFamily: 'monospace',
+    fontWeight: 'bold',
   },
   cardSection: {
     marginBottom: 12,
     backgroundColor: 'transparent',
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
+    backgroundColor: 'transparent',
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8b949e',
+    marginLeft: 6,
+    fontFamily: 'monospace',
+  },
+  achievementTitle: {
+    color: '#0be881',
   },
   sectionContent: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: '#333',
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#f0f6fc',
+    fontFamily: 'monospace',
+    paddingLeft: 18,
   },
   achievementContent: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: '#2d7d46',
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#0be881',
+    fontFamily: 'monospace',
     fontWeight: '500',
+    paddingLeft: 18,
   },
   footer: {
     marginTop: 24,
     padding: 16,
-    backgroundColor: 'rgba(74, 153, 96, 0.1)',
-    borderRadius: 12,
+    backgroundColor: '#161b22',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#30363d',
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   footerText: {
-    fontSize: 14,
+    fontSize: 12,
     textAlign: 'center',
-    color: '#4a9960',
-    fontStyle: 'italic',
-    lineHeight: 20,
+    color: '#58a6ff',
+    fontFamily: 'monospace',
+    marginLeft: 8,
+    fontWeight: 'bold',
   },
 }); 
