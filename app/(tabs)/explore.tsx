@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase.config';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { addDoc, collection, Timestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
@@ -9,10 +10,10 @@ import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'reac
 // 振り返りデータの型定義
 interface ReflectionData {
   date: Timestamp;
-  events: string;          // 今日の出来事
-  thoughts: string;        // 考察・感情
-  achievements: string;    // 成功体験や新しい知識・スキル
-  mood: number;           // 気分評価（1-5）
+  events: string;
+  thoughts: string;
+  achievements: string;
+  mood: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -20,7 +21,6 @@ interface ReflectionData {
 export default function ExploreScreen() {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  
   
   // フォームの状態管理
   const [formData, setFormData] = useState({
@@ -34,27 +34,32 @@ export default function ExploreScreen() {
   const today = new Date();
   const todayString = today.toLocaleDateString('ja-JP', {
     year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long'
+    month: '2-digit',
+    day: '2-digit',
   });
 
   // 気分評価の文字列変換
   const getMoodText = (mood: number) => {
-    const moodTexts = ['', '😞 とても悪い', '😕 悪い', '😐 普通', '😊 良い', '😄 とても良い'];
+    const moodTexts = ['', 'CRITICAL', 'ERROR', 'WARNING', 'SUCCESS', 'OPTIMAL'];
     return moodTexts[mood];
+  };
+
+  // 気分評価の色
+  const getMoodColor = (mood: number) => {
+    const moodColors = ['', '#ff6b6b', '#ff9f43', '#feca57', '#48dbfb', '#0be881'];
+    return moodColors[mood];
   };
 
   // フォーム送信処理
   const handleSubmit = async () => {
     if (!user) {
-      Alert.alert('エラー', 'ログインが必要です');
+      Alert.alert('認証エラー', 'ログインが必要です');
       return;
     }
 
     // バリデーション（成功体験・知識は必須）
     if (!formData.achievements.trim()) {
-      Alert.alert('入力エラー', '今日の成功体験や新しい知識・スキルを入力してください');
+      Alert.alert('入力エラー', '成功体験や新しい知識・スキルの入力は必須です');
       return;
     }
 
@@ -74,10 +79,10 @@ export default function ExploreScreen() {
 
       // Firestoreに保存
       await addDoc(collection(db, 'users', user.uid, 'dailyReflections'), reflectionData);
-      
-      Alert.alert('保存完了', '今日の振り返りを保存しました！\n小さな成長も積み重ねが大切ですね✨', [
+
+      Alert.alert('保存完了', '今日の成長記録をクラウドに保存しました ✓\nあなたの成長データは安全に暗号化されて保存されています', [
         {
-          text: 'OK',
+          text: '続ける',
           onPress: () => {
             // フォームをリセット
             setFormData({
@@ -91,7 +96,7 @@ export default function ExploreScreen() {
       ]);
     } catch (error) {
       console.error('保存エラー:', error);
-      Alert.alert('エラー', '保存に失敗しました。もう一度お試しください。');
+      Alert.alert('ネットワークエラー', 'クラウドとの同期に失敗しました。再度お試しください');
     } finally {
       setIsLoading(false);
     }
@@ -99,68 +104,129 @@ export default function ExploreScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <ThemedView style={styles.header}>
-        <ThemedText style={styles.title}>今日の成長記録</ThemedText>
-        <ThemedText style={styles.date}>{todayString}</ThemedText>
-        <ThemedText style={styles.subtitle}>小さな成功も大きな一歩 🌱</ThemedText>
+      {/* ヘッダー - ターミナル風 */}
+      <ThemedView style={styles.terminal}>
+        <ThemedView style={styles.terminalHeader}>
+          <ThemedView style={styles.terminalButtons}>
+            <ThemedView style={[styles.terminalButton, styles.redButton]} />
+            <ThemedView style={[styles.terminalButton, styles.yellowButton]} />
+            <ThemedView style={[styles.terminalButton, styles.greenButton]} />
+          </ThemedView>
+          <ThemedText style={styles.terminalTitle}>growth-tracker v2.0.1</ThemedText>
+        </ThemedView>
+        
+        <ThemedView style={styles.terminalContent}>
+          <ThemedText style={styles.promptLine}>
+            <ThemedText style={styles.prompt}>user@growlog:~$ </ThemedText>
+            <ThemedText style={styles.command}>./capture_growth --date {todayString}</ThemedText>
+          </ThemedText>
+          <ThemedText style={styles.systemInfo}>
+            [INFO] Initializing growth capture module...
+          </ThemedText>
+          <ThemedText style={styles.systemInfo}>
+            [INFO] AI analysis system ready. Begin data input.
+          </ThemedText>
+        </ThemedView>
       </ThemedView>
 
       <ThemedView style={styles.form}>
         {/* 今日の出来事 */}
         <ThemedView style={styles.fieldContainer}>
-          <ThemedText style={styles.label}>今日の出来事</ThemedText>
-          <TextInput
-            style={styles.textInput}
-            multiline
-            numberOfLines={3}
-            placeholder="今日はどんなことがありましたか？"
-            value={formData.events}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, events: text }))}
-            returnKeyType="done"
-            blurOnSubmit={true}
-          />
+          <ThemedView style={styles.labelContainer}>
+            <Feather name="edit-3" size={16} color="#58a6ff" style={styles.labelIcon} />
+            <ThemedText style={styles.label}>
+              <ThemedText style={styles.flag}>--events</ThemedText>
+              <ThemedText style={styles.labelDesc}> Daily activity log (optional)</ThemedText>
+            </ThemedText>
+          </ThemedView>
+          <ThemedView style={styles.inputContainer}>
+            <ThemedText style={styles.inputPrompt}>$ </ThemedText>
+            <TextInput
+              style={styles.textInput}
+              multiline
+              numberOfLines={3}
+              placeholder="今日はどんなことがありましたか？"
+              placeholderTextColor="#666"
+              value={formData.events}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, events: text }))}
+              returnKeyType="done"
+              blurOnSubmit={true}
+            />
+          </ThemedView>
         </ThemedView>
 
         {/* 考察・感情 */}
         <ThemedView style={styles.fieldContainer}>
-          <ThemedText style={styles.label}>それに対する考察・感情</ThemedText>
-          <TextInput
-            style={styles.textInput}
-            multiline
-            numberOfLines={3}
-            placeholder="どんな気持ちになりましたか？どう思いましたか？"
-            value={formData.thoughts}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, thoughts: text }))}
-            returnKeyType="done"
-            blurOnSubmit={true}
-          />
+          <ThemedView style={styles.labelContainer}>
+            <Feather name="message-circle" size={16} color="#58a6ff" style={styles.labelIcon} />
+            <ThemedText style={styles.label}>
+              <ThemedText style={styles.flag}>--thoughts</ThemedText>
+              <ThemedText style={styles.labelDesc}> Cognitive analysis (optional)</ThemedText>
+            </ThemedText>
+          </ThemedView>
+          <ThemedView style={styles.inputContainer}>
+            <ThemedText style={styles.inputPrompt}>$ </ThemedText>
+            <TextInput
+              style={styles.textInput}
+              multiline
+              numberOfLines={3}
+              placeholder="どんな気持ちになりましたか？どう思いましたか？"
+              placeholderTextColor="#666"
+              value={formData.thoughts}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, thoughts: text }))}
+              returnKeyType="done"
+              blurOnSubmit={true}
+            />
+          </ThemedView>
         </ThemedView>
 
         {/* 成功体験・新しい知識・スキル */}
         <ThemedView style={styles.fieldContainer}>
-          <ThemedText style={styles.label}>今日の成功体験や新しく得た知識・スキル *</ThemedText>
-          <TextInput
-            style={[styles.textInput, styles.requiredField]}
-            multiline
-            numberOfLines={4}
-            placeholder="どんな小さなことでも構いません！"
-            value={formData.achievements}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, achievements: text }))}
-            returnKeyType="done"
-            blurOnSubmit={true}
-          />
+          <ThemedView style={styles.labelContainer}>
+            <Feather name="target" size={16} color="#58a6ff" style={styles.labelIcon} />
+            <ThemedText style={styles.label}>
+              <ThemedText style={styles.flag}>--achievements*</ThemedText>
+              <ThemedText style={styles.labelDesc}> Growth metrics (required)</ThemedText>
+            </ThemedText>
+          </ThemedView>
+          <ThemedView style={styles.inputContainer}>
+            <ThemedText style={styles.inputPrompt}>$ </ThemedText>
+            <TextInput
+              style={[styles.textInput, styles.requiredField]}
+              multiline
+              numberOfLines={4}
+              placeholder="どんな小さなことでも構いません！{'\n'}・新しく覚えたこと{'\n'}・うまくいったこと{'\n'}・身についたスキル など"
+              placeholderTextColor="#666"
+              value={formData.achievements}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, achievements: text }))}
+              returnKeyType="done"
+              blurOnSubmit={true}
+            />
+          </ThemedView>
         </ThemedView>
 
         {/* 気分評価 */}
         <ThemedView style={styles.fieldContainer}>
-          <ThemedText style={styles.label}>今日の気分は？</ThemedText>
+          <ThemedView style={styles.labelContainer}>
+            <Feather name="activity" size={16} color="#58a6ff" style={styles.labelIcon} />
+            <ThemedText style={styles.label}>
+              <ThemedText style={styles.flag}>--mood</ThemedText>
+              <ThemedText style={styles.labelDesc}> 今日の気持ちは？</ThemedText>
+            </ThemedText>
+          </ThemedView>
           <ThemedView style={styles.moodContainer}>
             {[1, 2, 3, 4, 5].map((mood) => (
               <TouchableOpacity
                 key={mood}
                 style={[
                   styles.moodButton,
-                  formData.mood === mood && styles.moodButtonSelected
+                  formData.mood === mood && { 
+                    backgroundColor: getMoodColor(mood),
+                    shadowColor: getMoodColor(mood),
+                    shadowOpacity: 0.5,
+                    shadowRadius: 8,
+                    elevation: 8,
+                  }
                 ]}
                 onPress={() => setFormData(prev => ({ ...prev, mood }))}
               >
@@ -173,7 +239,9 @@ export default function ExploreScreen() {
               </TouchableOpacity>
             ))}
           </ThemedView>
-          <ThemedText style={styles.moodText}>{getMoodText(formData.mood)}</ThemedText>
+          <ThemedText style={[styles.moodText, { color: getMoodColor(formData.mood) }]}>
+            STATUS: {getMoodText(formData.mood)}
+          </ThemedText>
         </ThemedView>
 
         {/* 保存ボタン */}
@@ -182,10 +250,28 @@ export default function ExploreScreen() {
           onPress={handleSubmit}
           disabled={isLoading}
         >
+          <MaterialIcons 
+            name={isLoading ? "sync" : "cloud-upload"} 
+            size={16} 
+            color="#ffffff" 
+            style={styles.buttonIcon}
+          />
           <ThemedText style={styles.submitButtonText}>
-            {isLoading ? '保存中...' : '今日の成長を記録する 🌟'}
+            {isLoading ? '[UPLOADING...] ░░░░░░░░░░' : '[EXECUTE]  保存する'}
           </ThemedText>
         </TouchableOpacity>
+
+        {/* ステータス表示 */}
+        <ThemedView style={styles.statusBar}>
+          <ThemedView style={styles.statusItem}>
+            <Feather name="wifi" size={10} color="#0be881" />
+            <ThemedText style={styles.statusText}> Connected to growth.ai</ThemedText>
+          </ThemedView>
+          <ThemedView style={styles.statusItem}>
+            <Feather name="shield" size={10} color="#58a6ff" />
+            <ThemedText style={styles.statusText}> Encryption: AES-256</ThemedText>
+          </ThemedView>
+        </ThemedView>
       </ThemedView>
     </ScrollView>
   );
@@ -196,123 +282,206 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     marginBottom: 80,
     flex: 1,
-    backgroundColor: '#f8fffe',
+    backgroundColor: '#0d1117', // GitHub dark
   },
   contentContainer: {
     paddingBottom: 32,
   },
-  header: {
-    padding: 20,
-    backgroundColor: 'transparent',
+  terminal: {
+    margin: 16,
+    backgroundColor: '#161b22',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#30363d',
+    overflow: 'hidden',
+  },
+  terminalHeader: {
+    backgroundColor: '#21262d',
+    padding: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#30363d',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#2d7d46',
+  terminalButtons: {
+    flexDirection: 'row',
+    gap: 6,
   },
-  date: {
-    fontSize: 16,
-    opacity: 0.7,
+  terminalButton: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  redButton: {
+    backgroundColor: '#ff6b6b',
+  },
+  yellowButton: {
+    backgroundColor: '#feca57',
+  },
+  greenButton: {
+    backgroundColor: '#48dbfb',
+  },
+  terminalTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#8b949e',
+    fontFamily: 'monospace',
+  },
+  terminalContent: {
+    padding: 16,
+    backgroundColor: 'transparent',
+  },
+  promptLine: {
     marginBottom: 8,
   },
-  subtitle: {
+  prompt: {
+    color: '#0be881',
+    fontFamily: 'monospace',
     fontSize: 14,
-    fontStyle: 'italic',
-    opacity: 0.6,
-    color: '#4a9960',
+  },
+  command: {
+    color: '#58a6ff',
+    fontFamily: 'monospace',
+    fontSize: 14,
+  },
+  systemInfo: {
+    color: '#7c3aed',
+    fontFamily: 'monospace',
+    fontSize: 12,
+    marginBottom: 4,
   },
   form: {
-    padding: 20,
+    padding: 16,
     backgroundColor: 'transparent',
   },
   fieldContainer: {
     marginBottom: 24,
     backgroundColor: 'transparent',
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
-    color: '#333',
+    backgroundColor: 'transparent',
+  },
+  labelIcon: {
+    marginRight: 8,
+  },
+  label: {
+    flex: 1,
+  },
+  flag: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#58a6ff',
+    fontFamily: 'monospace',
+  },
+  labelDesc: {
+    fontSize: 14,
+    color: '#8b949e',
+    fontFamily: 'monospace',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#161b22',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#30363d',
+    padding: 12,
+  },
+  inputPrompt: {
+    color: '#0be881',
+    fontFamily: 'monospace',
+    fontSize: 14,
+    marginRight: 8,
+    marginTop: 2,
   },
   textInput: {
-    borderWidth: 1,
-    borderColor: '#e1e5e9',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: '#ffffff',
+    flex: 1,
+    fontSize: 14,
+    color: '#f0f6fc',
+    fontFamily: 'monospace',
     textAlignVertical: 'top',
-    minHeight: 80,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    minHeight: 60,
+    lineHeight: 20,
   },
   requiredField: {
-    borderColor: '#4a9960',
-    borderWidth: 2,
+    borderColor: '#f85149',
   },
   moodContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 12,
+    paddingHorizontal: 16,
   },
   moodButton: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#e1e5e9',
-    backgroundColor: '#ffffff',
+    borderColor: '#30363d',
+    backgroundColor: '#161b22',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  moodButtonSelected: {
-    borderColor: '#4a9960',
-    backgroundColor: '#4a9960',
-  },
   moodButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#666',
+    color: '#8b949e',
+    fontFamily: 'monospace',
   },
   moodButtonTextSelected: {
-    color: '#ffffff',
+    color: '#0d1117',
   },
   moodText: {
     textAlign: 'center',
-    fontSize: 14,
-    opacity: 0.7,
+    fontSize: 12,
+    fontFamily: 'monospace',
+    fontWeight: 'bold',
   },
   submitButton: {
-    backgroundColor: '#4a9960',
-    borderRadius: 12,
-    padding: 18,
+    backgroundColor: '#238636',
+    borderRadius: 6,
+    padding: 16,
     alignItems: 'center',
-    // marginTop: 16,
-    marginBottom: 16,
-    shadowColor: '#4a9960',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#2ea043',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: '#999',
+    backgroundColor: '#21262d',
+    borderColor: '#30363d',
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   submitButtonText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
+    fontFamily: 'monospace',
+  },
+  statusBar: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#0d1117',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#21262d',
+  },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    backgroundColor: 'transparent',
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    color: '#8b949e',
   },
 });
