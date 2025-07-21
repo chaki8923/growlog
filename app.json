@@ -7,10 +7,12 @@
     "icon": "./assets/images/icon.png",
     "scheme": "growlog",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
+    "sdkVersion": "52.0.0",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.growlog.app"
+      "bundleIdentifier": "com.growlog.app",
+      "newArchEnabled": false
     },
     "android": {
       "adaptiveIcon": {
@@ -35,10 +37,30 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "newArchEnabled": false
+          }
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "cccd8b59-e0cc-478a-9ef8-3b17ded1c464"
+      }
     }
   }
 }
