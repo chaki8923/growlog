@@ -25,6 +25,7 @@ export default function HistoryScreen() {
   const [reflections, setReflections] = useState<ReflectionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({});
 
   // 気分評価の文字列変換
   const getMoodText = (mood: number) => {
@@ -46,6 +47,66 @@ export default function HistoryScreen() {
       month: '2-digit',
       day: '2-digit',
     });
+  };
+
+  // テキストをリスト形式で表示するコンポーネント
+  const ListText: React.FC<{ 
+    text: string; 
+    numberOfLines?: number; 
+    style: any; 
+    id: string; 
+    section: string;
+  }> = ({ text, numberOfLines, style, id, section }) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const itemKey = `${id}-${section}`;
+    const isExpanded = expandedItems[itemKey];
+    const hasMultipleItems = lines.length > 2;
+    
+    const toggleExpand = () => {
+      setExpandedItems(prev => ({
+        ...prev,
+        [itemKey]: !prev[itemKey]
+      }));
+    };
+
+    if (lines.length <= 1) {
+      // 単一行の場合は通常表示
+      return <ThemedText style={style} numberOfLines={numberOfLines}>{text}</ThemedText>;
+    }
+
+    // 複数行の場合はリスト表示
+    const displayLines = (isExpanded || !hasMultipleItems) ? lines : lines.slice(0, 2);
+    
+    return (
+      <ThemedView style={styles.listContainer}>
+        {displayLines.map((line, index) => {
+          const trimmedLine = line.trim();
+          const isBulletPoint = trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*');
+          const displayText = isBulletPoint ? trimmedLine : `• ${trimmedLine}`;
+          
+          return (
+            <ThemedView key={index} style={styles.listItem}>
+              <ThemedText style={[style, styles.listItemText]}>
+                {displayText}
+              </ThemedText>
+            </ThemedView>
+          );
+        })}
+        
+        {hasMultipleItems && (
+          <TouchableOpacity onPress={toggleExpand} style={styles.expandButton}>
+            <Feather 
+              name={isExpanded ? "chevron-up" : "chevron-down"} 
+              size={12} 
+              color="#8b949e" 
+            />
+            <ThemedText style={styles.expandText}>
+              {isExpanded ? 'COLLAPSE' : `SHOW ALL (${lines.length} items)`}
+            </ThemedText>
+          </TouchableOpacity>
+        )}
+      </ThemedView>
+    );
   };
 
   // Firestoreから履歴を取得
@@ -213,9 +274,12 @@ export default function HistoryScreen() {
                   <Feather name="edit-3" size={12} color="#8b949e" />
                   <ThemedText style={styles.sectionTitle}>--events</ThemedText>
                 </ThemedView>
-                <ThemedText style={styles.sectionContent} numberOfLines={2}>
-                  {reflection.events}
-                </ThemedText>
+                <ListText 
+                  text={reflection.events} 
+                  style={styles.sectionContent}
+                  id={reflection.id}
+                  section="events"
+                />
               </ThemedView>
             )}
 
@@ -226,9 +290,12 @@ export default function HistoryScreen() {
                   <Feather name="message-circle" size={12} color="#8b949e" />
                   <ThemedText style={styles.sectionTitle}>--thoughts</ThemedText>
                 </ThemedView>
-                <ThemedText style={styles.sectionContent} numberOfLines={2}>
-                  {reflection.thoughts}
-                </ThemedText>
+                <ListText 
+                  text={reflection.thoughts} 
+                  style={styles.sectionContent}
+                  id={reflection.id}
+                  section="thoughts"
+                />
               </ThemedView>
             )}
 
@@ -238,9 +305,12 @@ export default function HistoryScreen() {
                 <Feather name="target" size={12} color="#0be881" />
                 <ThemedText style={[styles.sectionTitle, styles.achievementTitle]}>--achievements</ThemedText>
               </ThemedView>
-              <ThemedText style={styles.achievementContent} numberOfLines={3}>
-                {reflection.achievements}
-              </ThemedText>
+              <ListText 
+                text={reflection.achievements} 
+                style={styles.achievementContent}
+                id={reflection.id}
+                section="achievements"
+              />
             </ThemedView>
           </TouchableOpacity>
         ))}
@@ -446,6 +516,29 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontWeight: '500',
     paddingLeft: 18,
+  },
+  listContainer: {
+    backgroundColor: 'transparent',
+  },
+  listItem: {
+    marginBottom: 4,
+    backgroundColor: 'transparent',
+  },
+  listItemText: {
+    paddingLeft: 0,
+  },
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingLeft: 4,
+  },
+  expandText: {
+    fontSize: 11,
+    color: '#8b949e',
+    fontFamily: 'monospace',
+    marginLeft: 4,
+    textDecorationLine: 'underline',
   },
   footer: {
     marginTop: 24,

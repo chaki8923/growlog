@@ -22,6 +22,9 @@ export default function ExploreScreen() {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   
+  // フォーカス状態の管理
+  const [fieldFocused, setFieldFocused] = useState<string | null>(null);
+  
   // フォームの状態管理
   const [formData, setFormData] = useState({
     events: '',
@@ -50,6 +53,41 @@ export default function ExploreScreen() {
     return moodColors[mood];
   };
 
+  // フォーカス時の処理（自動で・を追加）
+  const handleFocus = (field: 'events' | 'thoughts' | 'achievements') => {
+    setFieldFocused(field);
+    
+    // フィールドが空の場合、自動で「・ 」を追加
+    if (!formData[field].trim()) {
+      setFormData(prev => ({ ...prev, [field]: '• ' }));
+    }
+  };
+
+  // フォーカスアウト時の処理
+  const handleBlur = () => {
+    setFieldFocused(null);
+  };
+
+  // テキスト変更時の処理（改行検出とリスト形式対応）
+  const handleTextChange = (field: 'events' | 'thoughts' | 'achievements', text: string) => {
+    const prevText = formData[field];
+    
+    // 改行が追加されたかチェック
+    if (text.length > prevText.length && text.endsWith('\n')) {
+      // 最後の行をチェック
+      const lines = text.split('\n');
+      const lastLine = lines[lines.length - 2]; // 改行前の行
+      
+      // 前の行が箇条書きで、かつ内容があるなら次の行も箇条書きにする
+      if (lastLine && lastLine.trim().startsWith('•') && lastLine.trim().length > 1) {
+        setFormData(prev => ({ ...prev, [field]: text + '• ' }));
+        return;
+      }
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: text }));
+  };
+
   // フォーム送信処理
   const handleSubmit = async () => {
     if (!user) {
@@ -58,7 +96,7 @@ export default function ExploreScreen() {
     }
 
     // バリデーション（成功体験・知識は必須）
-    if (!formData.achievements.trim()) {
+    if (!formData.achievements.trim() || formData.achievements.trim() === '•') {
       Alert.alert('入力エラー', '成功体験や新しい知識・スキルの入力は必須です');
       return;
     }
@@ -139,18 +177,28 @@ export default function ExploreScreen() {
               <ThemedText style={styles.labelDesc}> Daily activity log (optional)</ThemedText>
             </ThemedText>
           </ThemedView>
-          <ThemedView style={styles.inputContainer}>
+          <ThemedView style={[styles.inputContainer, fieldFocused === 'events' && styles.inputContainerFocused]}>
             <ThemedText style={styles.inputPrompt}>$ </ThemedText>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, styles.listInput]}
               multiline
-              numberOfLines={3}
-              placeholder="今日はどんなことがありましたか？"
+              numberOfLines={4}
+              placeholder="フィールドをタップして入力開始{'\n'}自動で箇条書き形式になります{'\n'}改行で次の項目を追加"
               placeholderTextColor="#666"
               value={formData.events}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, events: text }))}
-              blurOnSubmit={true}
+              onChangeText={(text) => handleTextChange('events', text)}
+              onFocus={() => handleFocus('events')}
+              onBlur={handleBlur}
+              returnKeyType="default"
+              blurOnSubmit={false}
             />
+          </ThemedView>
+          {/* ヘルプテキスト */}
+          <ThemedView style={styles.helpContainer}>
+            <Feather name="info" size={12} color="#8b949e" />
+            <ThemedText style={styles.helpText}>
+              TIP: Auto bullet points • Press return for new items
+            </ThemedText>
           </ThemedView>
         </ThemedView>
 
@@ -163,18 +211,28 @@ export default function ExploreScreen() {
               <ThemedText style={styles.labelDesc}> Cognitive analysis (optional)</ThemedText>
             </ThemedText>
           </ThemedView>
-          <ThemedView style={styles.inputContainer}>
+          <ThemedView style={[styles.inputContainer, fieldFocused === 'thoughts' && styles.inputContainerFocused]}>
             <ThemedText style={styles.inputPrompt}>$ </ThemedText>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, styles.listInput]}
               multiline
-              numberOfLines={3}
-              placeholder="どんな気持ちになりましたか？どう思いましたか？"
+              numberOfLines={4}
+              placeholder="フィールドをタップして入力開始{'\n'}自動で箇条書き形式になります{'\n'}改行で次の項目を追加"
               placeholderTextColor="#666"
               value={formData.thoughts}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, thoughts: text }))}
-              blurOnSubmit={true}
+              onChangeText={(text) => handleTextChange('thoughts', text)}
+              onFocus={() => handleFocus('thoughts')}
+              onBlur={handleBlur}
+              returnKeyType="default"
+              blurOnSubmit={false}
             />
+          </ThemedView>
+          {/* ヘルプテキスト */}
+          <ThemedView style={styles.helpContainer}>
+            <Feather name="info" size={12} color="#8b949e" />
+            <ThemedText style={styles.helpText}>
+              TIP: Auto bullet points • Press return for new items
+            </ThemedText>
           </ThemedView>
         </ThemedView>
 
@@ -187,18 +245,28 @@ export default function ExploreScreen() {
               <ThemedText style={styles.labelDesc}> Growth metrics (required)</ThemedText>
             </ThemedText>
           </ThemedView>
-          <ThemedView style={styles.inputContainer}>
+          <ThemedView style={[styles.inputContainer, fieldFocused === 'achievements' && styles.inputContainerFocused, styles.requiredField]}>
             <ThemedText style={styles.inputPrompt}>$ </ThemedText>
             <TextInput
-              style={[styles.textInput, styles.requiredField]}
+              style={[styles.textInput, styles.listInput]}
               multiline
-              numberOfLines={4}
-              placeholder="どんな小さなことでも構いません！{'\n'}・新しく覚えたこと{'\n'}・うまくいったこと{'\n'}・身についたスキル など"
+              numberOfLines={6}
+              placeholder="フィールドをタップして入力開始{'\n'}自動で箇条書き形式になります{'\n'}改行で次の項目を追加"
               placeholderTextColor="#666"
               value={formData.achievements}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, achievements: text }))}
-              blurOnSubmit={true}
+              onChangeText={(text) => handleTextChange('achievements', text)}
+              onFocus={() => handleFocus('achievements')}
+              onBlur={handleBlur}
+              returnKeyType="default"
+              blurOnSubmit={false}
             />
+          </ThemedView>
+          {/* ヘルプテキスト */}
+          <ThemedView style={styles.helpContainer}>
+            <Feather name="info" size={12} color="#8b949e" />
+            <ThemedText style={styles.helpText}>
+              TIP: Auto bullet points • Press return for new items
+            </ThemedText>
           </ThemedView>
         </ThemedView>
 
@@ -208,7 +276,7 @@ export default function ExploreScreen() {
             <Feather name="activity" size={16} color="#58a6ff" style={styles.labelIcon} />
             <ThemedText style={styles.label}>
               <ThemedText style={styles.flag}>--mood</ThemedText>
-              <ThemedText style={styles.labelDesc}> feeling today?</ThemedText>
+              <ThemedText style={styles.labelDesc}> 今日の気持ちは？</ThemedText>
             </ThemedText>
           </ThemedView>
           <ThemedView style={styles.moodContainer}>
@@ -254,7 +322,7 @@ export default function ExploreScreen() {
             style={styles.buttonIcon}
           />
           <ThemedText style={styles.submitButtonText}>
-            {isLoading ? '[UPLOADING...] ░░░░░░░░░░' : '[EXECUTE]  SAVE'}
+            {isLoading ? '[UPLOADING...] ░░░░░░░░░░' : '[EXECUTE]  保存する'}
           </ThemedText>
         </TouchableOpacity>
 
@@ -388,6 +456,13 @@ const styles = StyleSheet.create({
     borderColor: '#30363d',
     padding: 12,
   },
+  inputContainerFocused: {
+    borderColor: '#58a6ff',
+    shadowColor: '#58a6ff',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   inputPrompt: {
     color: '#0be881',
     fontFamily: 'monospace',
@@ -404,8 +479,25 @@ const styles = StyleSheet.create({
     minHeight: 60,
     lineHeight: 20,
   },
+  listInput: {
+    minHeight: 100,
+  },
   requiredField: {
     borderColor: '#f85149',
+  },
+  helpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingLeft: 12,
+    backgroundColor: 'transparent',
+  },
+  helpText: {
+    fontSize: 11,
+    color: '#8b949e',
+    fontFamily: 'monospace',
+    marginLeft: 6,
+    fontStyle: 'italic',
   },
   moodContainer: {
     flexDirection: 'row',
