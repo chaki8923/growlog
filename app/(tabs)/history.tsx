@@ -167,10 +167,7 @@ export default function HistoryScreen() {
       
       // 前の行が箇条書きで、かつ内容があるなら次の行も箇条書きにする
       if (lastLine && lastLine.trim().startsWith('•') && lastLine.trim().length > 1) {
-        // 非同期で更新し、フォーカスを維持
-        setTimeout(() => {
-          setEditData(prev => ({ ...prev, [field]: text + '• ' }));
-        }, 0);
+        setEditData(prev => ({ ...prev, [field]: text + '• ' }));
         return;
       }
     }
