@@ -167,7 +167,7 @@ export default function HistoryScreen() {
       
       // 前の行が箇条書きで、かつ内容があるなら次の行も箇条書きにする
       if (lastLine && lastLine.trim().startsWith('•') && lastLine.trim().length > 1) {
-        // setTimeoutを使用して非同期に更新し、フォーカスを維持
+        // 非同期で更新し、フォーカスを維持
         setTimeout(() => {
           setEditData(prev => ({ ...prev, [field]: text + '• ' }));
         }, 0);
@@ -178,34 +178,10 @@ export default function HistoryScreen() {
     setEditData(prev => ({ ...prev, [field]: text }));
   };
 
-  // 編集用テキストエリア
-  const EditableTextArea: React.FC<{
-    value: string;
-    onChangeText: (text: string) => void;
-    placeholder: string;
-    style: any;
-    numberOfLines?: number;
-    field: string;
-  }> = ({ value, onChangeText, placeholder, style, numberOfLines = 3, field }) => (
-    <ThemedView style={styles.editInputContainer} pointerEvents="auto">
-      <ThemedText style={styles.editPrompt}>$ </ThemedText>
-      <TextInput
-        key={`${editingId}-${field}`}
-        style={[styles.editTextInput, style]}
-        multiline
-        numberOfLines={numberOfLines}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#666"
-        returnKeyType="default"
-        blurOnSubmit={false}
-        keyboardType="default"
-        autoCorrect={false}
-        autoFocus={false}
-      />
-    </ThemedView>
-  );
+  // 各フィールド用の安定したハンドラー
+  const handleEventsChange = (text: string) => handleTextChange('events', text);
+  const handleThoughtsChange = (text: string) => handleTextChange('thoughts', text);
+  const handleAchievementsChange = (text: string) => handleTextChange('achievements', text);
 
   // テキストをリスト形式で表示するコンポーネント
   const ListText: React.FC<{ 
@@ -375,7 +351,10 @@ export default function HistoryScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          editingId && { paddingBottom: 400 } // 編集モード時に下に余白を追加
+        ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -506,13 +485,21 @@ export default function HistoryScreen() {
                   <ThemedText style={styles.sectionTitle}>--events</ThemedText>
                 </ThemedView>
                 {editingId === reflection.id ? (
-                  <EditableTextArea
-                    value={editData.events || ''}
-                    onChangeText={(text) => handleTextChange('events', text)}
-                    placeholder="今日の出来事を入力..."
-                    style={styles.sectionContent}
+                  <TextInput
+                    style={[styles.sectionContent, styles.editInput]}
+                    multiline
                     numberOfLines={3}
-                    field="events"
+                    value={editData.events || ''}
+                    onChangeText={handleEventsChange}
+                    placeholder="今日の出来事を入力..."
+                    placeholderTextColor="#666"
+                    returnKeyType="default"
+                    blurOnSubmit={false}
+                    keyboardType="default"
+                    autoCorrect={false}
+                    autoFocus={false}
+                    textAlignVertical="top"
+                    scrollEnabled={false}
                   />
                 ) : (
                   <ListText 
@@ -533,13 +520,21 @@ export default function HistoryScreen() {
                   <ThemedText style={styles.sectionTitle}>--thoughts</ThemedText>
                 </ThemedView>
                 {editingId === reflection.id ? (
-                  <EditableTextArea
-                    value={editData.thoughts || ''}
-                    onChangeText={(text) => handleTextChange('thoughts', text)}
-                    placeholder="思考や感情を入力..."
-                    style={styles.sectionContent}
+                  <TextInput
+                    style={[styles.sectionContent, styles.editInput]}
+                    multiline
                     numberOfLines={3}
-                    field="thoughts"
+                    value={editData.thoughts || ''}
+                    onChangeText={handleThoughtsChange}
+                    placeholder="思考や感情を入力..."
+                    placeholderTextColor="#666"
+                    returnKeyType="default"
+                    blurOnSubmit={false}
+                    keyboardType="default"
+                    autoCorrect={false}
+                    autoFocus={false}
+                    textAlignVertical="top"
+                    scrollEnabled={false}
                   />
                 ) : (
                   <ListText 
@@ -559,13 +554,21 @@ export default function HistoryScreen() {
                 <ThemedText style={[styles.sectionTitle, styles.achievementTitle]}>--achievements</ThemedText>
               </ThemedView>
               {editingId === reflection.id ? (
-                <EditableTextArea
-                  value={editData.achievements || ''}
-                  onChangeText={(text) => handleTextChange('achievements', text)}
-                  placeholder="成功体験や学んだことを入力..."
-                  style={styles.achievementContent}
+                <TextInput
+                  style={[styles.achievementContent, styles.editInput]}
+                  multiline
                   numberOfLines={4}
-                  field="achievements"
+                  value={editData.achievements || ''}
+                  onChangeText={handleAchievementsChange}
+                  placeholder="成功体験や学んだことを入力..."
+                  placeholderTextColor="#666"
+                  returnKeyType="default"
+                  blurOnSubmit={false}
+                  keyboardType="default"
+                  autoCorrect={false}
+                  autoFocus={false}
+                  textAlignVertical="top"
+                  scrollEnabled={false}
                 />
               ) : (
                 <ListText 
@@ -823,31 +826,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: 'bold',
   },
-  editInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#161b22',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#30363d',
-    padding: 8,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  editPrompt: {
-    color: '#0be881',
-    fontFamily: 'monospace',
-    fontSize: 14,
-    marginRight: 4,
-  },
-  editTextInput: {
-    flex: 1,
-    color: '#f0f6fc',
-    fontFamily: 'monospace',
-    fontSize: 14,
-    padding: 0,
-    minHeight: 40,
-  },
   reflectionCardEditing: {
     borderLeftColor: '#0be881',
     borderColor: '#0be881',
@@ -915,5 +893,17 @@ const styles = StyleSheet.create({
   },
   editMoodButtonTextSelected: {
     color: '#0d1117',
+  },
+  editInput: {
+    backgroundColor: '#161b22',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#30363d',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#f0f6fc',
+    fontFamily: 'monospace',
   },
 }); 
