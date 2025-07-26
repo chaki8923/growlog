@@ -2,10 +2,10 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase.config';
-import { Feather } from '@expo/vector-icons';
-import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firestore';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { collection, deleteDoc, doc, getDocs, orderBy, query, Timestamp, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // 振り返りデータの型定義
@@ -26,6 +26,11 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({});
+  
+  // 編集モード関連の状態
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<Partial<ReflectionData>>({});
+  const [saving, setSaving] = useState(false);
 
   // 気分評価の文字列変換
   const getMoodText = (mood: number) => {
@@ -48,6 +53,159 @@ export default function HistoryScreen() {
       day: '2-digit',
     });
   };
+
+  // 編集モードを開始
+  const startEdit = (reflection: ReflectionData) => {
+    setEditingId(reflection.id);
+    setEditData({
+      events: reflection.events,
+      thoughts: reflection.thoughts,
+      achievements: reflection.achievements,
+      mood: reflection.mood,
+    });
+  };
+
+  // 編集をキャンセル
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData({});
+  };
+
+  // 編集を保存
+  const saveEdit = async () => {
+    if (!user || !editingId) return;
+
+    // バリデーション（achievementsは必須）
+    if (!editData.achievements?.trim()) {
+      Alert.alert('入力エラー', '成功体験・学んだことの入力は必須です');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const docRef = doc(db, 'users', user.uid, 'dailyReflections', editingId);
+      await updateDoc(docRef, {
+        events: editData.events?.trim() || '',
+        thoughts: editData.thoughts?.trim() || '',
+        achievements: editData.achievements?.trim() || '',
+        mood: editData.mood || 3,
+        updatedAt: Timestamp.now(),
+      });
+
+      // ローカル状態を更新
+      setReflections(prev =>
+        prev.map(item =>
+          item.id === editingId
+            ? {
+                ...item,
+                events: editData.events?.trim() || '',
+                thoughts: editData.thoughts?.trim() || '',
+                achievements: editData.achievements?.trim() || '',
+                mood: editData.mood || 3,
+                updatedAt: Timestamp.now(),
+              }
+            : item
+        )
+      );
+
+      setEditingId(null);
+      setEditData({});
+      Alert.alert('更新完了', '記録が正常に更新されました ✓');
+    } catch (error) {
+      console.error('更新エラー:', error);
+      Alert.alert('エラー', '更新に失敗しました。再度お試しください。');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 削除確認
+  const confirmDelete = (reflection: ReflectionData) => {
+    Alert.alert(
+      '削除確認',
+      `${formatDate(reflection.date)}の記録を削除しますか？\n\nこの操作は元に戻せません。`,
+      [
+        {
+          text: 'キャンセル',
+          style: 'cancel',
+        },
+        {
+          text: '削除',
+          style: 'destructive',
+          onPress: () => deleteReflection(reflection.id),
+        },
+      ]
+    );
+  };
+
+  // 削除実行
+  const deleteReflection = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const docRef = doc(db, 'users', user.uid, 'dailyReflections', id);
+      await deleteDoc(docRef);
+
+      // ローカル状態を更新
+      setReflections(prev => prev.filter(item => item.id !== id));
+      Alert.alert('削除完了', '記録が正常に削除されました ✓');
+    } catch (error) {
+      console.error('削除エラー:', error);
+      Alert.alert('エラー', '削除に失敗しました。再度お試しください。');
+    }
+  };
+
+  // テキスト変更時の処理（改行対応）
+  const handleTextChange = (field: 'events' | 'thoughts' | 'achievements', text: string) => {
+    const prevText = editData[field] || '';
+    
+    // 改行が追加されたかチェック
+    if (text.length > prevText.length && text.endsWith('\n')) {
+      // 最後の行をチェック
+      const lines = text.split('\n');
+      const lastLine = lines[lines.length - 2]; // 改行前の行
+      
+      // 前の行が箇条書きで、かつ内容があるなら次の行も箇条書きにする
+      if (lastLine && lastLine.trim().startsWith('•') && lastLine.trim().length > 1) {
+        // setTimeoutを使用して非同期に更新し、フォーカスを維持
+        setTimeout(() => {
+          setEditData(prev => ({ ...prev, [field]: text + '• ' }));
+        }, 0);
+        return;
+      }
+    }
+    
+    setEditData(prev => ({ ...prev, [field]: text }));
+  };
+
+  // 編集用テキストエリア
+  const EditableTextArea: React.FC<{
+    value: string;
+    onChangeText: (text: string) => void;
+    placeholder: string;
+    style: any;
+    numberOfLines?: number;
+    field: string;
+  }> = ({ value, onChangeText, placeholder, style, numberOfLines = 3, field }) => (
+    <ThemedView style={styles.editInputContainer} pointerEvents="auto">
+      <ThemedText style={styles.editPrompt}>$ </ThemedText>
+      <TextInput
+        key={`${editingId}-${field}`}
+        style={[styles.editTextInput, style]}
+        multiline
+        numberOfLines={numberOfLines}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#666"
+        returnKeyType="default"
+        blurOnSubmit={false}
+        keyboardType="default"
+        autoCorrect={false}
+        autoFocus={false}
+      />
+    </ThemedView>
+  );
 
   // テキストをリスト形式で表示するコンポーネント
   const ListText: React.FC<{ 
@@ -128,7 +286,7 @@ export default function HistoryScreen() {
           ...doc.data()
         } as ReflectionData);
       });
-      console.log("reflectionsData",reflectionsData);
+
       
       setReflections(reflectionsData);
     } catch (error) {
@@ -173,6 +331,7 @@ export default function HistoryScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          keyboardShouldPersistTaps="always"
         >
           {/* ターミナルヘッダー */}
           <ThemedView style={styles.terminal}>
@@ -220,6 +379,7 @@ export default function HistoryScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        keyboardShouldPersistTaps="always"
       >
         {/* ターミナルヘッダー */}
         <ThemedView style={styles.terminal}>
@@ -247,10 +407,12 @@ export default function HistoryScreen() {
         </ThemedView>
 
         {reflections.map((reflection) => (
-          <TouchableOpacity
+          <ThemedView
             key={reflection.id}
-            style={styles.reflectionCard}
-            activeOpacity={0.8}
+            style={[
+              styles.reflectionCard,
+              editingId === reflection.id && styles.reflectionCardEditing
+            ]}
           >
             <View style={styles.cardHeader}>
               <ThemedView style={styles.cardInfo}>
@@ -259,45 +421,136 @@ export default function HistoryScreen() {
                   {formatDate(reflection.date)}
                 </ThemedText>
               </ThemedView>
-              <ThemedView style={styles.moodIndicator}>
-                <Feather name="activity" size={12} color={getMoodColor(reflection.mood)} />
-                <ThemedText style={[styles.cardMood, { color: getMoodColor(reflection.mood) }]}>
-                  {getMoodText(reflection.mood)}
-                </ThemedText>
-              </ThemedView>
+              
+              {/* 編集・削除ボタン */}
+              {editingId !== reflection.id ? (
+                <ThemedView style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => startEdit(reflection)}
+                  >
+                    <Feather name="edit-2" size={12} color="#58a6ff" />
+                    <ThemedText style={styles.actionButtonText}>EDIT</ThemedText>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => confirmDelete(reflection)}
+                  >
+                    <Feather name="trash-2" size={12} color="#f85149" />
+                    <ThemedText style={[styles.actionButtonText, styles.deleteButtonText]}>DEL</ThemedText>
+                  </TouchableOpacity>
+                </ThemedView>
+              ) : (
+                <ThemedView style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.saveButton]}
+                    onPress={saveEdit}
+                    disabled={saving}
+                  >
+                    <MaterialIcons name={saving ? "sync" : "save"} size={12} color="#0be881" />
+                    <ThemedText style={[styles.actionButtonText, styles.saveButtonText]}>
+                      {saving ? 'SAVING' : 'SAVE'}
+                    </ThemedText>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={cancelEdit}
+                  >
+                    <Feather name="x" size={12} color="#8b949e" />
+                    <ThemedText style={styles.actionButtonText}>CANCEL</ThemedText>
+                  </TouchableOpacity>
+                </ThemedView>
+              )}
             </View>
 
+            {/* 気分評価 */}
+            <ThemedView style={styles.moodSection}>
+              <ThemedView style={styles.moodIndicator}>
+                <Feather name="activity" size={12} color={getMoodColor(editingId === reflection.id ? (editData.mood || reflection.mood) : reflection.mood)} />
+                <ThemedText style={[styles.cardMood, { color: getMoodColor(editingId === reflection.id ? (editData.mood || reflection.mood) : reflection.mood) }]}>
+                  {getMoodText(editingId === reflection.id ? (editData.mood || reflection.mood) : reflection.mood)}
+                </ThemedText>
+              </ThemedView>
+              
+              {/* 編集モード時の気分評価 */}
+              {editingId === reflection.id && (
+                <ThemedView style={styles.editMoodContainer}>
+                  {[1, 2, 3, 4, 5].map((mood) => (
+                    <TouchableOpacity
+                      key={mood}
+                      style={[
+                        styles.editMoodButton,
+                        (editData.mood || reflection.mood) === mood && { 
+                          backgroundColor: getMoodColor(mood),
+                        }
+                      ]}
+                      onPress={() => setEditData(prev => ({ ...prev, mood }))}
+                    >
+                      <ThemedText style={[
+                        styles.editMoodButtonText,
+                        (editData.mood || reflection.mood) === mood && styles.editMoodButtonTextSelected
+                      ]}>
+                        {mood}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ThemedView>
+              )}
+            </ThemedView>
+
             {/* 今日の出来事 */}
-            {reflection.events && reflection.events.trim() && (
+            {(reflection.events && reflection.events.trim()) || editingId === reflection.id ? (
               <ThemedView style={styles.cardSection}>
                 <ThemedView style={styles.sectionHeader}>
                   <Feather name="edit-3" size={12} color="#8b949e" />
                   <ThemedText style={styles.sectionTitle}>--events</ThemedText>
                 </ThemedView>
-                <ListText 
-                  text={reflection.events} 
-                  style={styles.sectionContent}
-                  id={reflection.id}
-                  section="events"
-                />
+                {editingId === reflection.id ? (
+                  <EditableTextArea
+                    value={editData.events || ''}
+                    onChangeText={(text) => handleTextChange('events', text)}
+                    placeholder="今日の出来事を入力..."
+                    style={styles.sectionContent}
+                    numberOfLines={3}
+                    field="events"
+                  />
+                ) : (
+                  <ListText 
+                    text={reflection.events} 
+                    style={styles.sectionContent}
+                    id={reflection.id}
+                    section="events"
+                  />
+                )}
               </ThemedView>
-            )}
+            ) : null}
 
             {/* 考察・感情 */}
-            {reflection.thoughts && reflection.thoughts.trim() && (
+            {(reflection.thoughts && reflection.thoughts.trim()) || editingId === reflection.id ? (
               <ThemedView style={styles.cardSection}>
                 <ThemedView style={styles.sectionHeader}>
                   <Feather name="message-circle" size={12} color="#8b949e" />
                   <ThemedText style={styles.sectionTitle}>--thoughts</ThemedText>
                 </ThemedView>
-                <ListText 
-                  text={reflection.thoughts} 
-                  style={styles.sectionContent}
-                  id={reflection.id}
-                  section="thoughts"
-                />
+                {editingId === reflection.id ? (
+                  <EditableTextArea
+                    value={editData.thoughts || ''}
+                    onChangeText={(text) => handleTextChange('thoughts', text)}
+                    placeholder="思考や感情を入力..."
+                    style={styles.sectionContent}
+                    numberOfLines={3}
+                    field="thoughts"
+                  />
+                ) : (
+                  <ListText 
+                    text={reflection.thoughts} 
+                    style={styles.sectionContent}
+                    id={reflection.id}
+                    section="thoughts"
+                  />
+                )}
               </ThemedView>
-            )}
+            ) : null}
 
             {/* 成功体験・知識・スキル */}
             <ThemedView style={styles.cardSection}>
@@ -305,14 +558,25 @@ export default function HistoryScreen() {
                 <Feather name="target" size={12} color="#0be881" />
                 <ThemedText style={[styles.sectionTitle, styles.achievementTitle]}>--achievements</ThemedText>
               </ThemedView>
-              <ListText 
-                text={reflection.achievements} 
-                style={styles.achievementContent}
-                id={reflection.id}
-                section="achievements"
-              />
+              {editingId === reflection.id ? (
+                <EditableTextArea
+                  value={editData.achievements || ''}
+                  onChangeText={(text) => handleTextChange('achievements', text)}
+                  placeholder="成功体験や学んだことを入力..."
+                  style={styles.achievementContent}
+                  numberOfLines={4}
+                  field="achievements"
+                />
+              ) : (
+                <ListText 
+                  text={reflection.achievements} 
+                  style={styles.achievementContent}
+                  id={reflection.id}
+                  section="achievements"
+                />
+              )}
             </ThemedView>
-          </TouchableOpacity>
+          </ThemedView>
         ))}
 
         {/* フッター */}
@@ -558,5 +822,98 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     marginLeft: 8,
     fontWeight: 'bold',
+  },
+  editInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#161b22',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#30363d',
+    padding: 8,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  editPrompt: {
+    color: '#0be881',
+    fontFamily: 'monospace',
+    fontSize: 14,
+    marginRight: 4,
+  },
+  editTextInput: {
+    flex: 1,
+    color: '#f0f6fc',
+    fontFamily: 'monospace',
+    fontSize: 14,
+    padding: 0,
+    minHeight: 40,
+  },
+  reflectionCardEditing: {
+    borderLeftColor: '#0be881',
+    borderColor: '#0be881',
+    backgroundColor: '#0f1419',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: 'transparent',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#21262d',
+    borderWidth: 1,
+    borderColor: '#30363d',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  deleteButton: {
+    borderColor: '#f85149',
+  },
+  saveButton: {
+    borderColor: '#0be881',
+  },
+  actionButtonText: {
+    fontSize: 10,
+    color: '#8b949e',
+    fontFamily: 'monospace',
+    fontWeight: 'bold',
+  },
+  deleteButtonText: {
+    color: '#f85149',
+  },
+  saveButtonText: {
+    color: '#0be881',
+  },
+  moodSection: {
+    marginBottom: 12,
+    backgroundColor: 'transparent',
+  },
+  editMoodContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: 'transparent',
+    marginTop: 8,
+  },
+  editMoodButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#30363d',
+    backgroundColor: '#161b22',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editMoodButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#8b949e',
+    fontFamily: 'monospace',
+  },
+  editMoodButtonTextSelected: {
+    color: '#0d1117',
   },
 }); 
