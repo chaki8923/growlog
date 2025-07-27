@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Timestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
+import { getMoodColor } from '../../utils/moodUtils';
 import { ThemedText } from '../ThemedText';
 import { ThemedView } from '../ThemedView';
 import { AccordionWeek } from './AccordionWeek';
@@ -53,11 +54,6 @@ export const AccordionMonth: React.FC<AccordionMonthProps> = ({
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return monthNames[month - 1];
-  };
-
-  const getMoodColor = (mood: number) => {
-    const moodColors = ['', '#ff6b6b', '#ff9f43', '#feca57', '#48dbfb', '#0be881'];
-    return moodColors[Math.round(mood)];
   };
 
   const formatAverage = (average: number) => {

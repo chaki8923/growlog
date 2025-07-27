@@ -2,10 +2,13 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase.config';
+import { getMoodColor, getMoodText } from '@/utils/moodUtils';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { addDoc, collection, Timestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Alert, Dimensions, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 // 振り返りデータの型定義
 interface ReflectionData {
@@ -41,17 +44,7 @@ export default function ExploreScreen() {
     day: '2-digit',
   });
 
-  // 気分評価の文字列変換
-  const getMoodText = (mood: number) => {
-    const moodTexts = ['', 'CRITICAL', 'ERROR', 'WARNING', 'SUCCESS', 'OPTIMAL'];
-    return moodTexts[mood];
-  };
 
-  // 気分評価の色
-  const getMoodColor = (mood: number) => {
-    const moodColors = ['', '#ff6b6b', '#ff9f43', '#feca57', '#48dbfb', '#0be881'];
-    return moodColors[mood];
-  };
 
   // フォーカス時の処理（自動で・を追加）
   const handleFocus = (field: 'events' | 'thoughts' | 'achievements') => {

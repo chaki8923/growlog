@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Timestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { getMoodColor, getMoodText } from '../../utils/moodUtils';
 import { ThemedText } from '../ThemedText';
 import { ThemedView } from '../ThemedView';
 import { ReflectionData } from './AccordionMonth';
@@ -18,18 +19,6 @@ export const ReflectionCard: React.FC<ReflectionCardProps> = ({
   onDelete,
 }) => {
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
-
-  // 気分評価の文字列変換
-  const getMoodText = (mood: number) => {
-    const moodTexts = ['', 'CRITICAL', 'ERROR', 'WARNING', 'SUCCESS', 'OPTIMAL'];
-    return moodTexts[mood];
-  };
-
-  // 気分評価の色
-  const getMoodColor = (mood: number) => {
-    const moodColors = ['', '#ff6b6b', '#ff9f43', '#feca57', '#48dbfb', '#0be881'];
-    return moodColors[mood];
-  };
 
   // 日付フォーマット
   const formatDate = (timestamp: Timestamp) => {

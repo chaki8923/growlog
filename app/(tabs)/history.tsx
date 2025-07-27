@@ -5,6 +5,7 @@ import { Pagination } from '@/components/history/Pagination';
 import { SearchBar } from '@/components/history/SearchBar';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase.config';
+import { getMoodColor, getMoodText } from '@/utils/moodUtils';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { collection, deleteDoc, doc, getDocs, orderBy, query, Timestamp, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -37,18 +38,6 @@ export default function HistoryScreen() {
   const [editingReflection, setEditingReflection] = useState<ReflectionData | null>(null);
   const [editData, setEditData] = useState<Partial<ReflectionData>>({});
   const [saving, setSaving] = useState(false);
-
-  // 気分評価の文字列変換
-  const getMoodText = (mood: number) => {
-    const moodTexts = ['', 'CRITICAL', 'ERROR', 'WARNING', 'SUCCESS', 'OPTIMAL'];
-    return moodTexts[mood];
-  };
-
-  // 気分評価の色
-  const getMoodColor = (mood: number) => {
-    const moodColors = ['', '#ff6b6b', '#ff9f43', '#feca57', '#48dbfb', '#0be881'];
-    return moodColors[mood];
-  };
 
   // 週の開始日を取得（月曜日始まり）
   const getWeekStart = (date: Date) => {
@@ -107,27 +96,28 @@ export default function HistoryScreen() {
       const [year, month] = key.split('-').map(Number);
       
       // 週毎にグループ化
-      const weekGroups = new Map<string, ReflectionData[]>();
+      const weekGroups = new Map<string, { reflections: ReflectionData[], weekStart: Date, weekEnd: Date }>();
       
       monthReflections.forEach(reflection => {
         const date = reflection.date.toDate();
         const weekStart = getWeekStart(date);
-        const weekKey = weekStart.toISOString().split('T')[0];
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999); // 週の最後まで
+        
+        // ローカル日付文字列をキーとして使用（タイムゾーン問題を回避）
+        const weekKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
         
         if (!weekGroups.has(weekKey)) {
-          weekGroups.set(weekKey, []);
+          weekGroups.set(weekKey, { reflections: [], weekStart, weekEnd });
         }
-        weekGroups.get(weekKey)!.push(reflection);
+        weekGroups.get(weekKey)!.reflections.push(reflection);
       });
 
       // 週データを作成
       const weeks: WeekData[] = [];
       
-      weekGroups.forEach((weekReflections, weekKey) => {
-        const weekStart = new Date(weekKey);
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        
+      weekGroups.forEach(({ reflections: weekReflections, weekStart, weekEnd }) => {
         // 日付順にソート
         weekReflections.sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime());
         

@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { getMoodColor, getMoodText } from '../../utils/moodUtils';
 import { ThemedText } from '../ThemedText';
 import { ThemedView } from '../ThemedView';
 
@@ -19,16 +20,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onMoodChange,
   onClear,
 }) => {
-  const getMoodColor = (mood: number) => {
-    const moodColors = ['', '#ff6b6b', '#ff9f43', '#feca57', '#48dbfb', '#0be881'];
-    return moodColors[mood];
-  };
-
-  const getMoodText = (mood: number) => {
-    const moodTexts = ['', 'CRITICAL', 'ERROR', 'WARNING', 'SUCCESS', 'OPTIMAL'];
-    return moodTexts[mood];
-  };
-
   return (
     <ThemedView style={styles.container}>
       {/* 検索バー */}
